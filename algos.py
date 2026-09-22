@@ -300,7 +300,7 @@ def _stats(ev, sol):
 
 
 def run_gls(ev, seed, variant, max_iter=100000, max_sec=15.0, theta=0.01,
-            seg=40, rho=0.2):
+            seg=40, rho=0.2, return_sol=False):
     rng = random.Random(seed)
     t0 = time.time()
     sol = cam_construct(ev, rng)
@@ -383,9 +383,10 @@ def run_gls(ev, seed, variant, max_iter=100000, max_sec=15.0, theta=0.01,
     build(ev, best)
     route_elimination(ev, best, rng)
     st = _stats(ev, best)
-    return dict(nv=best.nv, dist=best.dist, fuel=best.fuel,
-                emis=XI * best.fuel, runtime=time.time() - t0,
-                iters=it, **st)
+    res = dict(nv=best.nv, dist=best.dist, fuel=best.fuel,
+               emis=XI * best.fuel, runtime=time.time() - t0,
+               iters=it, **st)
+    return (res, best) if return_sol else res
 
 
 def _greedy_insert(ev, routes, pool, rng, regret=2):
@@ -425,7 +426,7 @@ def _greedy_insert(ev, routes, pool, rng, regret=2):
     return routes
 
 
-def run_alns(ev, seed, max_iter=4000, max_sec=12.0):
+def run_alns(ev, seed, max_iter=4000, max_sec=12.0, return_sol=False):
     rng = random.Random(seed)
     t0 = time.time()
     cur = cam_construct(ev, rng)
@@ -486,6 +487,7 @@ def run_alns(ev, seed, max_iter=4000, max_sec=12.0):
     build(ev, best)
     route_elimination(ev, best, rng)
     st = _stats(ev, best)
-    return dict(nv=best.nv, dist=best.dist, fuel=best.fuel,
-                emis=XI * best.fuel, runtime=time.time() - t0,
-                iters=it, **st)
+    res = dict(nv=best.nv, dist=best.dist, fuel=best.fuel,
+               emis=XI * best.fuel, runtime=time.time() - t0,
+               iters=it, **st)
+    return (res, best) if return_sol else res

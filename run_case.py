@@ -17,52 +17,12 @@ def solve(ev, seed, algo):
     return run_gls(ev, seed, algo, max_sec=BUDGET)
 
 
-def best_solution(inst, ev, algo, seed):
-    rng = random.Random(seed)
-    from ecvrptw import cam_construct
-    sol = cam_construct(ev, rng)
-    route_elimination(ev, sol, rng)
-    S = Search(ev, sol, rng, alpha_mode="adaptive")
-    S.best = sol.clone()
-    t0 = time.time()
-    it = 0
-    w = {o: 1.0 for o in OPS}
-    since = 0
-    failed = set()
-    while time.time() - t0 < BUDGET:
-        it += 1
-        tot = sum(w.values())
-        x, acc, op = rng.random() * tot, 0.0, OPS[0]
-        for o in OPS:
-            acc += w[o]
-            if x <= acc:
-                op = o
-                break
-        gain = OPFN[op](S)
-        if gain > 0:
-            S.sol.recompute(ev)
-            S.accept(S.sol)
-            failed.discard(op)
-            since = 0
-        else:
-            failed.add(op)
-            since += 1
-            if len(failed) >= len(OPS):
-                S.penalise(S.sol)
-                build(ev, S.sol)
-                S.set_alpha(S.sol)
-                failed.clear()
-        if it % 120 == 0:
-            if route_elimination(ev, S.sol, rng, tries=3):
-                S.sol.recompute(ev)
-                S.accept(S.sol)
-        if since > 1500:
-            break
-    b = S.best
-    b.routes = [r for r in b.routes if r]
-    build(ev, b)
-    route_elimination(ev, b, rng)
-    return b
+def best_solution(ev, algo, seed):
+    if algo == "ALNS":
+        _, sol = run_alns(ev, seed, max_sec=BUDGET, return_sol=True)
+    else:
+        _, sol = run_gls(ev, seed, algo, max_sec=BUDGET, return_sol=True)
+    return sol
 
 
 def main():
@@ -95,7 +55,7 @@ def main():
     out.append("BEST: %s seed %d  nv=%d dist=%.2f fuel=%.3f"
                % (best["algo"], best["seed"], best["nv"], best["dist"], best["fuel"]))
 
-    sol = best_solution(inst, ev, best["algo"], best["seed"])
+    sol = best_solution(ev, best["algo"], best["seed"])
     os_ = Z.stats(ev, sol)
     out.append("OPTIMIZED (rebuilt): " + json.dumps(
         {k: round(v, 4) for k, v in os_.items()}))

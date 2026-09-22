@@ -4,9 +4,9 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ecvrptw import Instance, Eval, Solution, build, SPEEDS, U_REF, TMUL, XI
-from docpath import FOLDER
 
-XL = os.path.join(FOLDER, "Case_study_Data", "HGLS Eco-ECVRPTW Data.xlsx")
+HERE = os.path.dirname(os.path.abspath(__file__))
+NODES_CSV = os.path.join(HERE, "case_study", "zone_d_nodes.csv")
 R_EARTH = 6371.0088
 CAPACITY = 5.0
 TSCALE = 60.0 / U_REF
@@ -21,8 +21,8 @@ def haversine_matrix(lat, lon):
     return 2 * R_EARTH * np.arcsin(np.sqrt(np.clip(a, 0, 1)))
 
 
-def load(depot_row=0):
-    d = pd.read_excel(XL, sheet_name="WSSP Nodes", header=0)
+def load(depot_row=0, path=NODES_CSV):
+    d = pd.read_csv(path)
     d.columns = [str(c).strip() for c in d.columns]
     d = d.sort_values("Point").reset_index(drop=True)
     lat = d["Latitude_x"].to_numpy(float)

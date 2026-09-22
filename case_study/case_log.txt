@@ -1,0 +1,31 @@
+BASELINE (sweep + nearest neighbour): {"nv": 40, "dist": 542.6721, "fuel": 141.2105, "emis": 367.1474, "IF": 0.2602, "plow": 100.0, "pmed": 0.0, "phigh": 0.0, "lam": 0.3538}
+  GLS   seed 1: nv=36 dist=490.78 fuel=135.604 IF=0.2763
+  GLS   seed 2: nv=36 dist=476.06 fuel=131.766 IF=0.2768
+  GLS   seed 3: nv=36 dist=488.31 fuel=134.000 IF=0.2744
+  GLS   seed 4: nv=36 dist=498.60 fuel=137.781 IF=0.2763
+  GLS   seed 5: nv=36 dist=475.33 fuel=133.012 IF=0.2798
+  IGLS  seed 1: nv=36 dist=492.16 fuel=136.226 IF=0.2768
+  IGLS  seed 2: nv=36 dist=485.17 fuel=135.113 IF=0.2785
+  IGLS  seed 3: nv=36 dist=483.10 fuel=135.788 IF=0.2811
+  IGLS  seed 4: nv=36 dist=494.09 fuel=137.617 IF=0.2785
+  IGLS  seed 5: nv=36 dist=483.98 fuel=138.062 IF=0.2853
+  RGLS  seed 1: nv=36 dist=470.97 fuel=132.980 IF=0.2824
+  RGLS  seed 2: nv=36 dist=505.93 fuel=142.682 IF=0.2820
+  RGLS  seed 3: nv=36 dist=477.53 fuel=134.233 IF=0.2811
+  RGLS  seed 4: nv=36 dist=504.81 fuel=141.972 IF=0.2812
+  RGLS  seed 5: nv=36 dist=476.61 fuel=133.783 IF=0.2807
+  HGLS  seed 1: nv=36 dist=483.99 fuel=135.209 IF=0.2794
+  HGLS  seed 2: nv=36 dist=473.45 fuel=133.140 IF=0.2812
+  HGLS  seed 3: nv=36 dist=484.55 fuel=134.243 IF=0.2770
+  HGLS  seed 4: nv=36 dist=480.44 fuel=132.969 IF=0.2768
+  HGLS  seed 5: nv=36 dist=485.67 fuel=137.700 IF=0.2835
+  ALNS  seed 1: nv=36 dist=465.35 fuel=130.310 IF=0.2800
+  ALNS  seed 2: nv=36 dist=486.73 fuel=133.281 IF=0.2738
+  ALNS  seed 3: nv=36 dist=466.12 fuel=129.950 IF=0.2788
+  ALNS  seed 4: nv=36 dist=480.41 fuel=132.168 IF=0.2751
+  ALNS  seed 5: nv=36 dist=485.06 fuel=132.880 IF=0.2739
+
+BEST: ALNS seed 3  nv=36 dist=466.12 fuel=129.950
+OPTIMIZED (rebuilt): {"nv": 36, "dist": 494.6978, "fuel": 135.3387, "emis": 351.8806, "IF": 0.2736, "plow": 100.0, "pmed": 0.0, "phigh": 0.0, "lam": 0.4062}
+
+fuel saving = 5.872 L; distance term 12.484 L (8.84 pp), intensity term -6.612 L (-4.68 pp)
