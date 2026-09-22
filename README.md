@@ -79,9 +79,8 @@ of what the utility actually drove.
 
 ## Citation
 
-M. Alkahtani. Fuel and fuel intensity are dissociated in emission-capacitated
-vehicle routing: an eco-speed benchmark and a controlled comparison of five
-metaheuristics.
+M. Alkahtani. Shorter routes do not always mean less fuel: distance and
+efficiency in emission-aware vehicle routing.
 
 ## License
 
