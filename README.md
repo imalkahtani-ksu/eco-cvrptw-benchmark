@@ -21,10 +21,10 @@ and time windows are hard constraints; fleet size is minimized before fuel.
 | `algos.py` | GLS, IGLS, RGLS, HGLS and the ALNS-Eco baseline |
 | `runner.py` | Parallel experiment driver |
 | `analyze.py` | Statistics and figures |
-| `zone_d.py`, `run_case.py` | WSSP Zone D case study |
+| `zone_d.py`, `run_case.py` | Municipal collection-zone case study |
 | `instances/` | The 56 Solomon instances used |
 | `results/` | Raw logs of all 2,408 runs |
-| `case_study/` | Zone D node register and results |
+| `case_study/` | Case-study collection register and results |
 | `figures/` | Figures 3 to 7 of the paper |
 
 ## Eco-speed instances
@@ -64,9 +64,10 @@ without repeating them.
 
 ## Case study
 
-`case_study/zone_d_nodes.csv` is the collection-point register for Zone D of
-Water and Sanitation Services Peshawar: coordinates, service windows, demands
-and service times for 110 containers plus the depot.
+`case_study/zone_d_nodes.csv` is the collection-point register supplied by the
+municipal utility that operates the study zone: coordinates, service windows,
+demands and service times for 110 containers plus the depot. The utility is not
+named in the paper, which refers to the zone as the study zone.
 
 Road distances were not available, so inter-node distance is the great-circle
 distance between registered coordinates. Both plans compared use the same
@@ -79,8 +80,7 @@ of what the utility actually drove.
 
 ## Citation
 
-M. Alkahtani. Shorter routes do not always mean less fuel: distance and
-efficiency in emission-aware vehicle routing.
+M. Alkahtani. Fuel-intensity dissociation in emission-aware vehicle routing: an eco-speed benchmark and controlled metaheuristic comparison.
 
 ## License
 

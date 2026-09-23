@@ -30,7 +30,7 @@ def load(depot_row=0, path=NODES_CSV):
     D = haversine_matrix(lat, lon)
 
     inst = Instance.__new__(Instance)
-    inst.name = "WSSP_ZoneD"
+    inst.name = "CaseStudyZone"
     inst.n = len(d) - 1
     inst.x, inst.y = lon, lat
     inst.dem = d["Demand_m3"].to_numpy(float).copy()
