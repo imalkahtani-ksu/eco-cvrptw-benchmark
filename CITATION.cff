@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software or data, please cite it as below."
+title: "eco-cvrptw-benchmark: eco-speed benchmark, solver and experiment logs for emission-aware vehicle routing"
+version: "1.1"
+date-released: "2026-10-17"
+authors:
+  - family-names: "Alkahtani"
+    given-names: "Mohammed"
+    affiliation: "Department of Industrial Engineering, College of Engineering, King Saud University"
+license: MIT
+repository-code: "https://github.com/imalkahtani-ksu/eco-cvrptw-benchmark"
+keywords:
+  - vehicle routing
+  - time windows
+  - eco-speed
+  - fuel consumption
+  - guided local search
+  - adaptive large neighborhood search
+  - benchmark

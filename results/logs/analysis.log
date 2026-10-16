@@ -1,8 +1,8 @@
-C:\Users\utente\AppData\Local\Programs\Python\Python311\Lib\site-packages\scipy\stats\_stats_py.py:8593: RuntimeWarning: invalid value encountered in scalar divide
+site-packages\scipy\stats\_stats_py.py:8593: RuntimeWarning: invalid value encountered in scalar divide
   statistic = (12.0 / (k*n*(k+1)) * ssbn - 3*n*(k+1)) / c
-C:\Users\utente\AppData\Local\Programs\Python\Python311\Lib\site-packages\scipy\stats\_stats_py.py:8593: RuntimeWarning: invalid value encountered in scalar divide
+site-packages\scipy\stats\_stats_py.py:8593: RuntimeWarning: invalid value encountered in scalar divide
   statistic = (12.0 / (k*n*(k+1)) * ssbn - 3*n*(k+1)) / c
-C:\Users\utente\OneDrive - Università degli Studi dell'Aquila\Documenti\Alkahtani_Single_Author_Paper\revision_R1\code\analyze_r1.py:157: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+analyze_r1.py:157: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
   r = stats.spearmanr(c[k], c["IF"])
 main: 1400 runs, 0 zero-iteration runs, max search time 30.00684094429016
   Friedman fuel over 5 methods: chi2=7.44 p=0.1143
