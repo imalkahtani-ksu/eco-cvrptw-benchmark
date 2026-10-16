@@ -8,6 +8,27 @@ PHI_BASE = (0.85, 1.00, 1.18)
 RHO0, RHO1 = 0.20, 0.50
 XI = 2.60
 NLEV = 3
+MED = 1
+
+
+class Timeout(Exception):
+    pass
+
+
+def cmem_phi(speeds=SPEEDS, mass=6350.0):
+    # per-km fuel of the comprehensive modal emission model at each level, relative to
+    # the medium level; parameters of Bektas & Laporte (2011) and Demir et al. (2012)
+    k, N, V = 0.2, 33.0, 5.0
+    g, cr, cd, rho_air, area = 9.81, 0.01, 0.7, 1.2041, 3.912
+    eff = 0.4 * 0.9
+    beta = 0.5 * cd * rho_air * area
+
+    def per_m(kmh):
+        v = kmh / 3.6
+        return k * N * V / v + (mass * g * cr + beta * v * v) / (1000.0 * eff)
+
+    ref = per_m(speeds[MED])
+    return tuple(round(per_m(u) / ref, 4) for u in speeds)
 
 
 class Instance:
@@ -53,11 +74,21 @@ def read_solomon(path, name):
 
 class Eval:
 
-    def __init__(self, inst, phi=PHI_BASE):
+    def __init__(self, inst, phi=PHI_BASE, pickup=False, obj="fuel", fixed=None):
         self.I = inst
         self.phi = tuple(phi)
         self.drho = RHO1 - RHO0
         self.calls = 0
+        self.pickup = pickup
+        self.obj = obj
+        self.fixed = fixed
+        self.deadline = None
+        self.tscale = 1.0
+        self.t0 = float(inst.rdy[0])
+        if fixed is None:
+            self.start_lev = min(range(NLEV), key=lambda L: (self.phi[L], L))
+        else:
+            self.start_lev = fixed
         self.dd = inst.d.tolist()
         self.dem = inst.dem.tolist()
         self.rdy = inst.rdy.tolist()
@@ -67,10 +98,11 @@ class Eval:
 
     def _prop(self, seq, arcd, lev):
         rdy, due, srv = self.rdy, self.due, self.srv
-        t = 0.0
+        t = self.t0
+        sc = self.tscale
         m = len(seq) - 1
         for k in range(m):
-            t += arcd[k] * TMUL[lev[k]]
+            t += arcd[k] * sc * TMUL[lev[k]]
             j = seq[k + 1]
             if j == 0:
                 return (t <= due[0] + 1e-6), k
@@ -82,9 +114,12 @@ class Eval:
         return True, -1
 
     def route_eval(self, r):
+        if self.deadline is not None and time.time() > self.deadline:
+            raise Timeout()
         self.calls += 1
         if not r:
-            return {"dist": 0.0, "fuel": 0.0, "lev": [], "arcd": [], "load": []}
+            return {"dist": 0.0, "fuel": 0.0, "cost": 0.0, "lev": [], "arcd": [],
+                    "load": []}
         dem, Q, dd = self.dem, self.Q, self.dd
         tot = 0.0
         for c in r:
@@ -99,18 +134,24 @@ class Eval:
         arcd = [0.0] * m
         load = [0.0] * m
         base = [0.0] * m
-        cur = tot
+        # delivery: leave full and unload; collection: leave empty and load up
+        cur = 0.0 if self.pickup else tot
+        sgn = 1.0 if self.pickup else -1.0
         drho, R0 = self.drho, RHO0
         for k in range(m):
-            a = dd[seq[k]][seq[k + 1]]
+            j = seq[k + 1]
+            a = dd[seq[k]][j]
             arcd[k] = a
             load[k] = cur
             base[k] = (R0 + (cur / Q) * drho) * a
-            cur -= dem[seq[k + 1]] if seq[k + 1] != 0 else 0.0
+            if j != 0:
+                cur += sgn * dem[j]
 
-        lev = [0] * m
+        lev = [self.start_lev] * m
         ok, kbad = self._prop(seq, arcd, lev)
         if not ok:
+            if self.fixed is not None:
+                return None
             phi = self.phi
             for _ in range(2 * m + 4):
                 best, bestk = None, -1
@@ -139,28 +180,30 @@ class Eval:
         for k in range(m):
             fuel += base[k] * phi[lev[k]]
             dist += arcd[k]
-        return {"dist": dist, "fuel": fuel, "lev": lev, "arcd": arcd,
+        cost = fuel if self.obj == "fuel" else dist
+        return {"dist": dist, "fuel": fuel, "cost": cost, "lev": lev, "arcd": arcd,
                 "load": load}
 
 
 class Solution:
-    __slots__ = ("routes", "info", "fuel", "dist", "nv")
+    __slots__ = ("routes", "info", "fuel", "dist", "cost", "nv")
 
     def __init__(self):
         self.routes, self.info = [], []
-        self.fuel = self.dist = 0.0
+        self.fuel = self.dist = self.cost = 0.0
         self.nv = 0
 
     def clone(self):
         s = Solution()
         s.routes = [r[:] for r in self.routes]
         s.info = list(self.info)
-        s.fuel, s.dist, s.nv = self.fuel, self.dist, self.nv
+        s.fuel, s.dist, s.cost, s.nv = self.fuel, self.dist, self.cost, self.nv
         return s
 
     def recompute(self, ev):
         self.fuel = sum(i["fuel"] for i in self.info)
         self.dist = sum(i["dist"] for i in self.info)
+        self.cost = sum(i["cost"] for i in self.info)
         self.nv = sum(1 for r in self.routes if r)
 
 
@@ -199,7 +242,7 @@ def cam_construct(ev, rng):
                     it = ev.route_eval(nr)
                     if it is None:
                         continue
-                    cost = it["fuel"]
+                    cost = it["cost"]
                     if best is None or cost < best:
                         best, bc, bpos = cost, c, pos
             if bc > 0:

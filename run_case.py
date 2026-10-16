@@ -1,117 +1,74 @@
-import io, os, sys, json, random, time, csv
-import numpy as np
+import io, os, sys, json, csv, time, argparse
+import multiprocessing as mp
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import zone_d as Z
-from ecvrptw import build, Solution, XI
-from algos import run_gls, run_alns, route_elimination, Search, OPFN, OPS
 
-FUEL_USD = 0.95
-CARBON_USD_T = 80.0
-SEEDS = [1, 2, 3, 4, 5]
-BUDGET = 45.0
+ALGOS = ("GLS", "IGLS", "RGLS", "HGLS", "ALNS")
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(HERE, "case_study")
 
 
-def solve(ev, seed, algo):
-    if algo == "ALNS":
-        return run_alns(ev, seed, max_sec=BUDGET)
-    return run_gls(ev, seed, algo, max_sec=BUDGET)
-
-
-def best_solution(ev, algo, seed):
-    if algo == "ALNS":
-        _, sol = run_alns(ev, seed, max_sec=BUDGET, return_sol=True)
-    else:
-        _, sol = run_gls(ev, seed, algo, max_sec=BUDGET, return_sol=True)
-    return sol
+def work(task):
+    # one seed: build the common start once, then run every method from it
+    seed, budget = task
+    import zone_d as Z
+    from algos import run_gls, run_alns, start_solution
+    inst, _ = Z.load()
+    ev = Z.ZoneEval(inst)
+    t = time.time()
+    start = start_solution(ev, seed)
+    start_time = time.time() - t
+    rows = []
+    for a in ALGOS:
+        if a == "ALNS":
+            r, sol = run_alns(ev, start, seed, max_sec=budget, return_sol=True)
+        else:
+            r, sol = run_gls(ev, start, seed, a, max_sec=budget, return_sol=True)
+        r.update(algo=a, seed=seed, budget=budget, start_time=start_time,
+                 start_nv=start.nv, start_fuel=start.fuel,
+                 routes=json.dumps([[int(c) for c in x] for x in sol.routes]))
+        rows.append(r)
+    return rows
 
 
 def main():
-    inst, df = Z.load()
-    ev = Z.ZoneEval(inst)
-    out = []
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--seeds", type=int, default=5)
+    ap.add_argument("--budget", type=float, default=45.0)
+    ap.add_argument("--procs", type=int, default=5)
+    args = ap.parse_args()
 
+    import zone_d as Z
+    from algos import _stats
+    inst, _ = Z.load()
+    ev = Z.ZoneEval(inst)
     base = Z.sweep_plan(inst, ev)
     bs = Z.stats(ev, base)
-    out.append("BASELINE (sweep + nearest neighbour): " + json.dumps(
-        {k: round(v, 4) for k, v in bs.items()}))
+    print("constructed baseline:", {k: round(v, 4) for k, v in bs.items()})
 
     rows = []
-    for algo in ("GLS", "IGLS", "RGLS", "HGLS", "ALNS"):
-        for s in SEEDS:
-            r = solve(ev, s, algo)
-            r.update(algo=algo, seed=s)
-            rows.append(r)
-            out.append("  %-5s seed %d: nv=%d dist=%.2f fuel=%.3f IF=%.4f" %
-                       (algo, s, r["nv"], r["dist"], r["fuel"], r["IF"]))
-    with io.open("case_runs.csv", "w", encoding="utf-8", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()),
-                           extrasaction="ignore")
+    with mp.Pool(args.procs) as pool:
+        for rr in pool.imap_unordered(work, [(s, args.budget) for s in range(1, args.seeds + 1)]):
+            rows.extend(rr)
+            for r in rr:
+                print("  %-5s seed %d: nv=%d dist=%.2f fuel=%.3f IF=%.4f iters=%d"
+                      % (r["algo"], r["seed"], r["nv"], r["dist"], r["fuel"], r["IF"], r["iters"]))
+    rows.sort(key=lambda r: (r["algo"], r["seed"]))
+    fields = ["algo", "seed", "budget", "nv", "dist", "fuel", "emis", "IF", "plow", "pmed",
+              "phigh", "lam", "start_time", "start_nv", "start_fuel", "search_time",
+              "iters", "evals", "accepted", "routes"]
+    with io.open(os.path.join(OUT, "case_runs.csv"), "w", encoding="utf-8", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
-        for r in rows:
-            w.writerow(r)
+        w.writerows(rows)
 
     best = min(rows, key=lambda r: (r["nv"], r["fuel"]))
-    out.append("")
-    out.append("BEST: %s seed %d  nv=%d dist=%.2f fuel=%.3f"
-               % (best["algo"], best["seed"], best["nv"], best["dist"], best["fuel"]))
-
-    sol = best_solution(ev, best["algo"], best["seed"])
-    os_ = Z.stats(ev, sol)
-    out.append("OPTIMIZED (rebuilt): " + json.dumps(
-        {k: round(v, 4) for k, v in os_.items()}))
-
-    def money(st):
-        return (st["fuel"] * FUEL_USD, st["emis"] / 1000.0 * CARBON_USD_T)
-
-    bf, bc = money(bs)
-    of, oc = money(os_)
-    sysrows = [["Metric", "Manual plan", "Optimized plan", "Change", "Percent change"]]
-
-    def add(label, a, b, fmt="%.2f", pct=True):
-        ch = b - a
-        p = (100 * ch / a) if (pct and a) else ""
-        sysrows.append([label, fmt % a, fmt % b, fmt % ch,
-                        ("%.2f" % p) if p != "" else ""])
-    add("Number of routes", bs["nv"], os_["nv"], "%.0f")
-    add("Total distance (km)", bs["dist"], os_["dist"])
-    add("Average intensity IF (L/km)", bs["IF"], os_["IF"], "%.4f")
-    add("Total fuel (L)", bs["fuel"], os_["fuel"])
-    add("Total CO2e (kg)", bs["emis"], os_["emis"])
-    add("Fuel cost (USD)", bf, of)
-    add("Carbon cost (USD)", bc, oc)
-    add("Total cost (USD)", bf + bc, of + oc)
-    add("Distance at low speed (%)", bs["plow"], os_["plow"], "%.1f")
-    add("Distance-weighted payload", bs["lam"], os_["lam"], "%.3f")
-
-    dist_part = (bs["dist"] - os_["dist"]) * bs["IF"]
-    int_part = os_["dist"] * (bs["IF"] - os_["IF"])
-    out.append("")
-    out.append("fuel saving = %.3f L; distance term %.3f L (%.2f pp), "
-               "intensity term %.3f L (%.2f pp)"
-               % (bs["fuel"] - os_["fuel"], dist_part,
-                  100 * dist_part / bs["fuel"], int_part,
-                  100 * int_part / bs["fuel"]))
-
-    pairs = []
-    for r, it in zip(sol.routes, sol.info):
-        pairs.append((it["dist"], it["fuel"], len(r)))
-    pairs.sort(reverse=True)
-    routerows = [["Route", "Containers", "Distance (km)", "Fuel (L)",
-                  "IF (L/km)", "CO2e (kg)"]]
-    for i, (dd, ff, nn) in enumerate(pairs[:5], 1):
-        routerows.append(["O%d" % i, nn, "%.2f" % dd, "%.3f" % ff,
-                          "%.4f" % (ff / dd), "%.2f" % (XI * ff)])
-
-    json.dump({"baseline": bs, "optimized": os_,
-               "best_algo": best["algo"], "best_seed": best["seed"],
-               "fuel_usd": FUEL_USD, "carbon_usd_t": CARBON_USD_T,
-               "capacity_m3": Z.CAPACITY,
-               "dist_term_L": dist_part, "int_term_L": int_part,
-               "system_rows": sysrows, "route_rows": routerows,
-               "n_customers": inst.n, "total_demand": float(inst.dem.sum())},
-              io.open("case_results.json", "w", encoding="utf-8"), indent=1)
-    io.open("case_log.txt", "w", encoding="utf-8").write("\n".join(out))
-    print("\n".join(out))
+    json.dump({"baseline": bs, "baseline_routes": [[int(c) for c in x] for x in base.routes],
+               "best_run": {k: best[k] for k in ("algo", "seed", "nv", "dist", "fuel", "IF")},
+               "load_profile": "collection", "budget_s": args.budget,
+               "capacity_m3": Z.CAPACITY, "n_customers": inst.n,
+               "total_demand": float(inst.dem.sum())},
+              io.open(os.path.join(OUT, "case_results.json"), "w", encoding="utf-8"), indent=1)
+    print("wrote case_study/case_runs.csv and case_study/case_results.json")
 
 
 if __name__ == "__main__":

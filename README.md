@@ -44,25 +44,41 @@ standard distance-minimizing VRPTW.
 
 ```
 pip install -r requirements.txt
-
-python runner.py --out results/results_main.csv --seeds 5 --budget 30 --procs 14
-
-python runner.py --out results/results_sens.csv --seeds 3 --budget 30 --algos GLS,HGLS \
-  --instances C101,C108,C203,C206,R104,R110,R202,R208,RC103,RC107,RC202,RC206 \
-  --phis "1.0,1.0,1.0;0.93,1.0,1.09;0.85,1.0,1.18;0.75,1.0,1.30"
-
-python runner.py --out results/results_anytime.csv --seeds 3 --budgets "3,8,20,60" \
-  --instances C103,C107,C205,C208,R103,R109,R204,R210,RC102,RC106,RC203,RC207
-
-python analyze.py results/results_main.csv results/results_sens.csv
-python run_case.py
+python run_all.py
 ```
 
-The main sweep is 1,400 runs and takes about an hour on 14 cores. Logs of the
-runs reported in the paper are already in `results/`, so `analyze.py` can be run
-without repeating them.
+`run_all.py` runs every experiment of the paper in order and then the analysis;
+each step logs to `results/logs/`. A single step can be run on its own, for
+example `python run_all.py main`. The steps are:
+
+| Step | What it runs |
+|---|---|
+| `main` | all 56 instances, five methods, five seeds, 30 s search budget |
+| `case` | the municipal case study, five seeds, 45 s search budget |
+| `budget` | 12 instances at search budgets of 3, 8, 20 and 60 s |
+| `sens` | GLS and HGLS under four speed-factor vectors |
+| `ablation` | distance routing at fixed speed, fuel routing at fixed speed, fuel routing with speed selection |
+| `cmem` | the main comparison under the U-shaped speed-fuel curve of the comprehensive modal emission model |
+| `analysis` | all statistics, tables and figures, written to `results/analysis_r1/` |
+
+For every instance and seed the starting solution (Cheapest Arc construction
+followed by fleet minimization) is built once, outside the budget, and all
+methods start from a copy of it. The search budget is enforced on every route
+evaluation, so no method can exceed it by more than one evaluation. Each run
+records the construction time, the search time, the number of iterations, the
+number of route evaluations and the number of accepted moves.
+
+The full programme is about 4,700 runs and takes roughly four and a half hours
+with 10 worker processes. Use one worker per physical core: running more
+processes than cores lets them slow each other down, so that a wall-clock
+budget no longer buys the same amount of search.
+
+The logs of the original submission are kept in `results/results_*.csv`.
 
 ## Case study
+
+Vehicles in the case study collect rather than deliver: each leaves the depot
+empty and its payload grows with every container it empties.
 
 `case_study/zone_d_nodes.csv` is the collection-point register supplied by the
 municipal utility that operates the study zone: coordinates, service windows,

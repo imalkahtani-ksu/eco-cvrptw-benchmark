@@ -1,5 +1,5 @@
 import math, random, time
-from ecvrptw import Eval, Solution, build, cam_construct, XI
+from ecvrptw import Eval, Solution, build, cam_construct, XI, Timeout
 
 OPS = ("2opt", "3opt", "relocate", "oropt", "crossexch")
 NOPS = len(OPS)
@@ -20,7 +20,7 @@ class Search:
     def set_alpha(self, sol):
         if self.alpha_mode == "fixed" and self.alpha > 0:
             return
-        self.alpha = self.omega * sol.fuel / self.nfeat
+        self.alpha = self.omega * sol.cost / self.nfeat
 
     def route_pen(self, r):
         if not r:
@@ -41,7 +41,7 @@ class Search:
         return s
 
     def pcost(self, info, r):
-        return info["fuel"] + self.alpha * self.route_pen(r)
+        return info["cost"] + self.alpha * self.route_pen(r)
 
     def total_pcost(self, sol):
         return sum(self.pcost(sol.info[i], sol.routes[i])
@@ -66,7 +66,7 @@ class Search:
             pen[k] = pen.get(k, 0) + 1
 
     def accept(self, sol):
-        if (sol.nv, round(sol.fuel, 6)) < (self.best.nv, round(self.best.fuel, 6)):
+        if (sol.nv, round(sol.cost, 6)) < (self.best.nv, round(self.best.cost, 6)):
             self.best = sol.clone()
             return True
         return False
@@ -81,7 +81,7 @@ def _apply(S, idxs, newroutes):
         if it is None:
             return None
         infos.append(it)
-    news = sum(it["fuel"] for it in infos) + S.alpha * sum(
+    news = sum(it["cost"] for it in infos) + S.alpha * sum(
         S.route_pen(r) for r in newroutes)
     if news >= olds - 1e-9:
         return None
@@ -259,7 +259,7 @@ def route_elimination(ev, sol, rng, tries=99):
                         it = ev.route_eval(r[:pos] + [c] + r[pos:])
                         if it is None:
                             continue
-                        d = it["fuel"] - b["fuel"]
+                        d = it["cost"] - b["cost"]
                         if best is None or d < best[0]:
                             best = (d, ri, pos)
                 if best is None:
@@ -278,6 +278,17 @@ def route_elimination(ev, sol, rng, tries=99):
 
 OPFN = {"2opt": op_2opt, "3opt": op_3opt, "relocate": op_relocate,
         "oropt": op_oropt, "crossexch": op_crossexch}
+
+
+def start_solution(ev, seed):
+    # common starting point for every method: CAM construction, then fleet
+    # minimization to convergence; run once, outside the search budget
+    rng = random.Random(seed)
+    sol = cam_construct(ev, rng)
+    route_elimination(ev, sol, rng)
+    sol.routes = [r for r in sol.routes if r]
+    build(ev, sol)
+    return sol
 
 
 def _stats(ev, sol):
@@ -299,93 +310,97 @@ def _stats(ev, sol):
                 IF=sol.fuel / sol.dist if sol.dist > 0 else 0.0)
 
 
-def run_gls(ev, seed, variant, max_iter=100000, max_sec=15.0, theta=0.01,
-            seg=40, rho=0.2, return_sol=False):
+def run_gls(ev, start, seed, variant, max_sec=30.0, theta=0.01, seg=40, rho=0.2,
+            return_sol=False):
     rng = random.Random(seed)
-    t0 = time.time()
-    sol = cam_construct(ev, rng)
-    route_elimination(ev, sol, rng)
     mode = "fixed" if variant == "GLS" else "adaptive"
-    S = Search(ev, sol, rng, alpha_mode=mode)
-    S.best = sol.clone()
+    S = Search(ev, start.clone(), rng, alpha_mode=mode)
+    S.best = start.clone()
 
     w = {o: 1.0 for o in OPS}
     ssum = {o: 0.0 for o in OPS}
     scnt = {o: 0 for o in OPS}
     rr = 0
     it = 0
+    accepted = 0
     since_improve = 0
     failed = set()
-
-    while it < max_iter and time.time() - t0 < max_sec:
-        it += 1
-        if variant in ("GLS", "IGLS"):
-            op = OPS[rr % NOPS]
-        elif variant == "RGLS":
-            op = rng.choice(OPS)
-        else:
-            tot = sum(w.values())
-            x, acc, op = rng.random() * tot, 0.0, OPS[0]
-            for o in OPS:
-                acc += w[o]
-                if x <= acc:
-                    op = o
-                    break
-
-        tic = time.perf_counter()
-        gain = OPFN[op](S)
-        cpu = max(1e-6, time.perf_counter() - tic)
-
-        improved_best = False
-        if gain > 0.0:
-            S.sol.recompute(ev)
-            improved_best = S.accept(S.sol)
-            failed.discard(op)
-            since_improve = 0
-            if variant == "IGLS":
-                pass
-            elif variant == "GLS":
-                rr += 1
-        else:
-            failed.add(op)
-            since_improve += 1
+    calls0 = ev.calls
+    t0 = time.time()
+    ev.deadline = t0 + max_sec
+    try:
+        while True:
+            it += 1
             if variant in ("GLS", "IGLS"):
-                rr += 1
-            if len(failed) >= NOPS:
-                S.penalise(S.sol)
-                build(ev, S.sol)
-                failed.clear()
-                if S.alpha_mode == "adaptive":
-                    S.set_alpha(S.sol)
-
-        if variant == "HGLS":
-            scnt[op] += 1
-            ssum[op] += (4.0 if improved_best else (2.0 if gain > 0 else 0.0)) / cpu
-            if it % seg == 0:
-                mx = max(1e-9, max(ssum[o] / max(1, scnt[o]) for o in OPS))
+                op = OPS[rr % NOPS]
+            elif variant == "RGLS":
+                op = rng.choice(OPS)
+            else:
+                tot = sum(w.values())
+                x, acc, op = rng.random() * tot, 0.0, OPS[0]
                 for o in OPS:
-                    obs = (ssum[o] / scnt[o]) if scnt[o] else 0.0
-                    w[o] = max(0.08, (1 - rho) * w[o] + rho * (obs / mx))
-                    ssum[o], scnt[o] = 0.0, 0
-                if since_improve > seg:
-                    w["3opt"] = min(3.0, w["3opt"] + 0.35)
-                    w["crossexch"] = min(3.0, w["crossexch"] + 0.35)
+                    acc += w[o]
+                    if x <= acc:
+                        op = o
+                        break
 
-        if it % 120 == 0:
-            if route_elimination(ev, S.sol, rng, tries=3):
+            tic = time.perf_counter()
+            gain = OPFN[op](S)
+            cpu = max(1e-6, time.perf_counter() - tic)
+
+            improved_best = False
+            if gain > 0.0:
+                accepted += 1
                 S.sol.recompute(ev)
-                S.accept(S.sol)
-        if since_improve > 1500:
-            break
+                improved_best = S.accept(S.sol)
+                failed.discard(op)
+                since_improve = 0
+                if variant == "GLS":
+                    rr += 1
+            else:
+                failed.add(op)
+                since_improve += 1
+                if variant in ("GLS", "IGLS"):
+                    rr += 1
+                if len(failed) >= NOPS:
+                    S.penalise(S.sol)
+                    build(ev, S.sol)
+                    failed.clear()
+                    if S.alpha_mode == "adaptive":
+                        S.set_alpha(S.sol)
 
-    best = S.best
+            if variant == "HGLS":
+                scnt[op] += 1
+                ssum[op] += (4.0 if improved_best else (2.0 if gain > 0 else 0.0)) / cpu
+                if it % seg == 0:
+                    mx = max(1e-9, max(ssum[o] / max(1, scnt[o]) for o in OPS))
+                    for o in OPS:
+                        obs = (ssum[o] / scnt[o]) if scnt[o] else 0.0
+                        w[o] = max(0.08, (1 - rho) * w[o] + rho * (obs / mx))
+                        ssum[o], scnt[o] = 0.0, 0
+                    if since_improve > seg:
+                        w["3opt"] = min(3.0, w["3opt"] + 0.35)
+                        w["crossexch"] = min(3.0, w["crossexch"] + 0.35)
+
+            if it % 120 == 0:
+                if route_elimination(ev, S.sol, rng, tries=3):
+                    S.sol.recompute(ev)
+                    S.accept(S.sol)
+    except Timeout:
+        pass
+    ev.deadline = None
+    search_time = time.time() - t0
+    return _finish(ev, S.best, search_time, it, ev.calls - calls0, accepted, return_sol)
+
+
+def _finish(ev, best, search_time, iters, evals, accepted, return_sol):
+    # the incumbent is always a clean clone, so it is complete even after a timeout
     best.routes = [r for r in best.routes if r]
     build(ev, best)
-    route_elimination(ev, best, rng)
     st = _stats(ev, best)
-    res = dict(nv=best.nv, dist=best.dist, fuel=best.fuel,
-               emis=XI * best.fuel, runtime=time.time() - t0,
-               iters=it, **st)
+    res = dict(nv=best.nv, dist=best.dist, fuel=best.fuel, emis=XI * best.fuel,
+               search_time=search_time, iters=iters, evals=evals,
+               accepted=accepted, **st)
     return (res, best) if return_sol else res
 
 
@@ -404,7 +419,7 @@ def _greedy_insert(ev, routes, pool, rng, regret=2):
                     it = ev.route_eval(r[:pos] + [c] + r[pos:])
                     if it is None:
                         continue
-                    costs.append((it["fuel"] - base["fuel"], ri, pos))
+                    costs.append((it["cost"] - base["cost"], ri, pos))
             costs.sort()
             if not costs:
                 val, pick = -1e18, (None, len(routes), 0)
@@ -426,68 +441,69 @@ def _greedy_insert(ev, routes, pool, rng, regret=2):
     return routes
 
 
-def run_alns(ev, seed, max_iter=4000, max_sec=12.0, return_sol=False):
+def run_alns(ev, start, seed, max_sec=30.0, return_sol=False):
     rng = random.Random(seed)
-    t0 = time.time()
-    cur = cam_construct(ev, rng)
-    route_elimination(ev, cur, rng)
+    cur = start.clone()
     best = cur.clone()
     I = ev.I
     DES = ("random", "worst", "related")
     wd = {d: 1.0 for d in DES}
-    T = max(1e-6, 0.05 * cur.fuel)
+    T = max(1e-6, 0.05 * cur.cost)
     it = 0
-    while it < max_iter and time.time() - t0 < max_sec:
-        it += 1
-        cand = cur.clone()
-        allc = [c for r in cand.routes for c in r]
-        if len(allc) < 5:
-            break
-        q = rng.randint(max(2, len(allc) // 25), max(3, len(allc) // 8))
-        tot = sum(wd.values())
-        x, acc, dsel = rng.random() * tot, 0.0, DES[0]
-        for d in DES:
-            acc += wd[d]
-            if x <= acc:
-                dsel = d
+    accepted = 0
+    calls0 = ev.calls
+    t0 = time.time()
+    ev.deadline = t0 + max_sec
+    try:
+        while True:
+            it += 1
+            cand = cur.clone()
+            allc = [c for r in cand.routes for c in r]
+            if len(allc) < 5:
                 break
-        if dsel == "random":
-            rem = rng.sample(allc, q)
-        elif dsel == "worst":
-            sc = []
-            for ri, r in enumerate(cand.routes):
-                for k, c in enumerate(r):
-                    nr = r[:k] + r[k + 1:]
-                    a, b = ev.route_eval(r), ev.route_eval(nr)
-                    if a and b:
-                        sc.append((a["fuel"] - b["fuel"], c))
-            sc.sort(reverse=True)
-            rem = [c for _, c in sc[:q]]
-        else:
-            s0 = rng.choice(allc)
-            rem = [s0] + [c for c in I.near[s0] if c in allc][:q - 1]
-        rs = set(rem)
-        cand.routes = [[c for c in r if c not in rs] for r in cand.routes]
-        cand.routes = [r for r in cand.routes if r]
-        _greedy_insert(ev, cand.routes, rem, rng)
-        if not build(ev, cand):
-            continue
-        d = (cand.nv, cand.fuel) < (cur.nv, cur.fuel)
-        if d or rng.random() < math.exp(-(cand.fuel - cur.fuel) / T):
-            cur = cand
-            wd[dsel] = 0.9 * wd[dsel] + 0.1 * (3.0 if d else 1.0)
-        else:
-            wd[dsel] = 0.9 * wd[dsel] + 0.1 * 0.2
-        if it % 60 == 0:
-            route_elimination(ev, cur, rng, tries=3)
-        if (cur.nv, cur.fuel) < (best.nv, best.fuel):
-            best = cur.clone()
-        T *= 0.999
-    best.routes = [r for r in best.routes if r]
-    build(ev, best)
-    route_elimination(ev, best, rng)
-    st = _stats(ev, best)
-    res = dict(nv=best.nv, dist=best.dist, fuel=best.fuel,
-               emis=XI * best.fuel, runtime=time.time() - t0,
-               iters=it, **st)
-    return (res, best) if return_sol else res
+            q = rng.randint(max(2, len(allc) // 25), max(3, len(allc) // 8))
+            tot = sum(wd.values())
+            x, acc, dsel = rng.random() * tot, 0.0, DES[0]
+            for d in DES:
+                acc += wd[d]
+                if x <= acc:
+                    dsel = d
+                    break
+            if dsel == "random":
+                rem = rng.sample(allc, q)
+            elif dsel == "worst":
+                sc = []
+                for ri, r in enumerate(cand.routes):
+                    for k, c in enumerate(r):
+                        nr = r[:k] + r[k + 1:]
+                        a, b = ev.route_eval(r), ev.route_eval(nr)
+                        if a and b:
+                            sc.append((a["cost"] - b["cost"], c))
+                sc.sort(reverse=True)
+                rem = [c for _, c in sc[:q]]
+            else:
+                s0 = rng.choice(allc)
+                rem = [s0] + [c for c in I.near[s0] if c in allc][:q - 1]
+            rs = set(rem)
+            cand.routes = [[c for c in r if c not in rs] for r in cand.routes]
+            cand.routes = [r for r in cand.routes if r]
+            _greedy_insert(ev, cand.routes, rem, rng)
+            if not build(ev, cand):
+                continue
+            d = (cand.nv, cand.cost) < (cur.nv, cur.cost)
+            if d or rng.random() < math.exp(-(cand.cost - cur.cost) / T):
+                cur = cand
+                accepted += 1
+                wd[dsel] = 0.9 * wd[dsel] + 0.1 * (3.0 if d else 1.0)
+            else:
+                wd[dsel] = 0.9 * wd[dsel] + 0.1 * 0.2
+            if it % 60 == 0:
+                route_elimination(ev, cur, rng, tries=3)
+            if (cur.nv, cur.cost) < (best.nv, best.cost):
+                best = cur.clone()
+            T *= 0.999
+    except Timeout:
+        pass
+    ev.deadline = None
+    search_time = time.time() - t0
+    return _finish(ev, best, search_time, it, ev.calls - calls0, accepted, return_sol)

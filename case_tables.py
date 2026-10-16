@@ -9,12 +9,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def main():
-    res = json.load(io.open(os.path.join(HERE, "case_results.json"), encoding="utf-8"))
-    runs = pd.read_csv(os.path.join(HERE, "case_runs.csv"))
+    res = json.load(io.open(os.path.join(HERE, "case_study", "case_results.json"), encoding="utf-8"))
+    runs = pd.read_csv(os.path.join(HERE, "case_study", "case_runs.csv"))
     b = res["baseline"]
 
     byalgo = runs.groupby("algo")[["nv", "dist", "fuel", "IF", "plow", "lam"]].mean()
-    best_algo = byalgo["fuel"].idxmin()
+    best_algo = byalgo.sort_values(["nv", "fuel"]).index[0]
     sub = runs[runs.algo == best_algo]
     o = dict(nv=sub["nv"].mean(), dist=sub["dist"].mean(), fuel=sub["fuel"].mean(),
              plow=sub["plow"].mean(), lam=sub["lam"].mean())
@@ -34,7 +34,7 @@ def main():
     bf, bc = money(b)
     of, oc = money(o)
 
-    T8 = [["Metric", "Manual plan", "Optimized plan", "Change", "Change (%)"]]
+    T8 = [["Metric", "Constructed baseline", "Optimized plan", "Change", "Change (%)"]]
 
 
     def add(lbl, x, y, f="%.2f", pct=True):
@@ -52,12 +52,12 @@ def main():
     add("Carbon cost (USD/day)", bc, oc)
     add("Total cost (USD/day)", bf + bc, of + oc)
 
-    T9 = [["Component", "Fuel (L/day)", "Share of manual fuel (%)"],
-          ["Saving from shorter routes", "%+.2f" % -dist_term,
+    T9 = [["Component", "Fuel (L/day)", "Share of baseline fuel (%)"],
+          ["Distance component", "%+.2f" % -dist_term,
            "%+.2f" % (-100 * dist_term / b["fuel"])],
-          ["Penalty from higher intensity", "%+.2f" % -int_term,
+          ["Intensity component", "%+.2f" % -int_term,
            "%+.2f" % (-100 * int_term / b["fuel"])],
-          ["Net fuel saving", "%+.2f" % -tot_save,
+          ["Net fuel difference", "%+.2f" % -tot_save,
            "%+.2f" % (-100 * tot_save / b["fuel"])]]
 
     summary = dict(best_algo=best_algo, baseline=b, optimized=o,
@@ -72,7 +72,7 @@ def main():
                    n_cust=res["n_customers"], demand=res["total_demand"],
                    cap=res["capacity_m3"],
                    byalgo=byalgo.round(4).to_dict())
-    json.dump(summary, io.open(os.path.join(HERE, "case_final.json"), "w", encoding="utf-8"), indent=1)
+    json.dump(summary, io.open(os.path.join(HERE, "case_study", "case_final.json"), "w", encoding="utf-8"), indent=1)
 
     lines = ["best method: %s (mean of 5 seeds)" % best_algo,
              "baseline  : nv=%.0f dist=%.2f fuel=%.3f IF=%.4f lam=%.3f"
@@ -82,10 +82,10 @@ def main():
              "",
              "distance  %+.2f%%   intensity %+.2f%%   fuel %+.2f%%"
              % (summary["pct_dist"], summary["pct_IF"], summary["pct_fuel"]),
-             "decomposition: shorter routes %+.2f L, intensity penalty %+.2f L, net %+.2f L"
+             "decomposition: distance component %+.2f L, intensity component %+.2f L, net %+.2f L"
              % (-dist_term, int_term, -tot_save),
-             "cost saving: %.2f USD/day" % summary["cost_save"]]
-    io.open(os.path.join(HERE, "case_summary.txt"), "w", encoding="utf-8").write("\n".join(lines))
+             "modeled cost difference: %.2f USD/day" % summary["cost_save"]]
+    io.open(os.path.join(HERE, "case_study", "case_summary.txt"), "w", encoding="utf-8").write("\n".join(lines))
     print("\n".join(lines))
 
 

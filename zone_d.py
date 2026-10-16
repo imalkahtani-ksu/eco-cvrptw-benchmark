@@ -50,22 +50,13 @@ def load(depot_row=0, path=NODES_CSV):
 
 
 class ZoneEval(Eval):
+    # waste collection: vehicles leave the depot empty and fill up along the route;
+    # times in minutes from midnight, shift starts at 08:00
 
-    def _prop(self, seq, arcd, lev):
-        rdy, due, srv = self.rdy, self.due, self.srv
-        t = rdy[seq[0]] if seq[0] != 0 else 480.0
-        m = len(seq) - 1
-        for k in range(m):
-            t += arcd[k] * TSCALE * TMUL[lev[k]]
-            j = seq[k + 1]
-            if j == 0:
-                return (t <= due[0] + 1e-6), k
-            if t < rdy[j]:
-                t = rdy[j]
-            if t > due[j] + 1e-6:
-                return False, k
-            t += srv[j]
-        return True, -1
+    def __init__(self, inst, pickup=True, **kw):
+        Eval.__init__(self, inst, pickup=pickup, **kw)
+        self.tscale = TSCALE
+        self.t0 = 480.0
 
 
 def sweep_plan(inst, ev):
