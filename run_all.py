@@ -25,9 +25,18 @@ STEPS = [
 ]
 
 
+def keep_awake():
+    # ask Windows not to idle-sleep while this process runs; released when it exits
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)
+
+
 def main():
     only = sys.argv[1:]
     os.makedirs("results/logs", exist_ok=True)
+    keep_awake()
+    t_all = time.time()
     for name, cmd in STEPS:
         if only and name not in only:
             continue
@@ -40,7 +49,11 @@ def main():
         sys.stdout.flush()
         if rc != 0:
             print("stopping: see results/logs/%s.log" % name)
+            with open("results/logs/STATUS.txt", "w") as fh:
+                fh.write("FAILED at step %s, %s\n" % (name, time.strftime("%Y-%m-%d %H:%M")))
             sys.exit(rc)
+    with open("results/logs/STATUS.txt", "w") as fh:
+        fh.write("ALL STEPS FINISHED %s (%.1f h)\n" % (time.strftime("%Y-%m-%d %H:%M"), (time.time() - t_all) / 3600))
 
 
 if __name__ == "__main__":

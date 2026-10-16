@@ -1,0 +1,20 @@
+C:\Users\utente\AppData\Local\Programs\Python\Python311\Lib\site-packages\scipy\stats\_stats_py.py:8593: RuntimeWarning: invalid value encountered in scalar divide
+  statistic = (12.0 / (k*n*(k+1)) * ssbn - 3*n*(k+1)) / c
+C:\Users\utente\AppData\Local\Programs\Python\Python311\Lib\site-packages\scipy\stats\_stats_py.py:8593: RuntimeWarning: invalid value encountered in scalar divide
+  statistic = (12.0 / (k*n*(k+1)) * ssbn - 3*n*(k+1)) / c
+C:\Users\utente\OneDrive - Università degli Studi dell'Aquila\Documenti\Alkahtani_Single_Author_Paper\revision_R1\code\analyze_r1.py:157: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  r = stats.spearmanr(c[k], c["IF"])
+main: 1400 runs, 0 zero-iteration runs, max search time 30.00684094429016
+  Friedman fuel over 5 methods: chi2=7.44 p=0.1143
+  Friedman dist over 5 methods: chi2=2.27 p=0.686
+  Friedman IF   over 5 methods: chi2=36.11 p=2.741e-07
+  Friedman plow over 5 methods: chi2=24.69 p=5.819e-05
+  Friedman nv   over 5 methods: chi2=12.91 p=0.01172
+  Friedman fuel over 4 methods: chi2=10.20 p=0.01694
+  Friedman dist over 4 methods: chi2=1.86 p=0.601
+  Friedman IF   over 4 methods: chi2=37.89 p=2.988e-08
+  Friedman plow over 4 methods: chi2=23.42 p=3.299e-05
+  Friedman nv   over 4 methods: chi2=3.59 p=0.3097
+  distance-intensity coupling r=0.342, permutation p=9.999e-05, 95% CI [0.135, 0.540]
+  centroids n=30: rho(IF, phigh)=-0.200 rho(IF, plow)=-0.122 rho(IF, lam)=0.620
+wrote results/analysis_r1

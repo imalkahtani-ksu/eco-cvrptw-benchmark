@@ -1,0 +1,27 @@
+constructed baseline: {'nv': 40, 'dist': 542.6721, 'fuel': 163.6065, 'emis': 425.3768, 'IF': 0.3015, 'plow': 100.0, 'pmed': 0.0, 'phigh': 0.0, 'lam': 0.5156}
+  GLS   seed 5: nv=36 dist=504.43 fuel=139.793 IF=0.2771 iters=3608
+  IGLS  seed 5: nv=36 dist=489.65 fuel=138.110 IF=0.2821 iters=6841
+  RGLS  seed 5: nv=36 dist=475.51 fuel=132.626 IF=0.2789 iters=3409
+  HGLS  seed 5: nv=36 dist=481.30 fuel=135.347 IF=0.2812 iters=7652
+  ALNS  seed 5: nv=36 dist=496.93 fuel=135.670 IF=0.2730 iters=2696
+  GLS   seed 1: nv=36 dist=500.25 fuel=135.722 IF=0.2713 iters=3418
+  IGLS  seed 1: nv=36 dist=496.21 fuel=135.871 IF=0.2738 iters=6742
+  RGLS  seed 1: nv=36 dist=486.84 fuel=133.805 IF=0.2748 iters=3264
+  HGLS  seed 1: nv=36 dist=487.94 fuel=135.107 IF=0.2769 iters=7353
+  ALNS  seed 1: nv=36 dist=495.53 fuel=135.534 IF=0.2735 iters=2688
+  GLS   seed 2: nv=36 dist=492.01 fuel=136.739 IF=0.2779 iters=3599
+  IGLS  seed 2: nv=36 dist=492.11 fuel=135.584 IF=0.2755 iters=6402
+  RGLS  seed 2: nv=36 dist=474.97 fuel=133.065 IF=0.2802 iters=3340
+  HGLS  seed 2: nv=36 dist=481.05 fuel=133.508 IF=0.2775 iters=7968
+  ALNS  seed 2: nv=36 dist=495.21 fuel=135.929 IF=0.2745 iters=2721
+  GLS   seed 4: nv=36 dist=482.79 fuel=134.952 IF=0.2795 iters=3453
+  IGLS  seed 4: nv=36 dist=505.51 fuel=138.065 IF=0.2731 iters=6671
+  RGLS  seed 4: nv=36 dist=489.85 fuel=135.633 IF=0.2769 iters=3422
+  HGLS  seed 4: nv=36 dist=479.23 fuel=133.021 IF=0.2776 iters=7463
+  ALNS  seed 4: nv=36 dist=506.58 fuel=136.899 IF=0.2702 iters=2719
+  GLS   seed 3: nv=36 dist=488.39 fuel=134.535 IF=0.2755 iters=3573
+  IGLS  seed 3: nv=36 dist=487.59 fuel=138.587 IF=0.2842 iters=6278
+  RGLS  seed 3: nv=36 dist=488.87 fuel=135.343 IF=0.2768 iters=3316
+  HGLS  seed 3: nv=36 dist=478.66 fuel=132.342 IF=0.2765 iters=7235
+  ALNS  seed 3: nv=36 dist=505.89 fuel=136.695 IF=0.2702 iters=2652
+wrote case_study/case_runs.csv and case_study/case_results.json

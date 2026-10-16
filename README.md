@@ -60,6 +60,9 @@ example `python run_all.py main`. The steps are:
 | `ablation` | distance routing at fixed speed, fuel routing at fixed speed, fuel routing with speed selection |
 | `cmem` | the main comparison under the U-shaped speed-fuel curve of the comprehensive modal emission model |
 | `analysis` | all statistics, tables and figures, written to `results/analysis_r1/` |
+| `crossscore.py` | ablation: fixed-speed solutions re-scored with speed selection allowed |
+| `run_long.py`, `analyze_l120.py` | the 27 series-2 instances at a 120 s search budget, compared with 30 s |
+| `diag_speed.py` | diagnostic of the search with speed selection (effort, starting solution, re-scoring) |
 
 For every instance and seed the starting solution (Cheapest Arc construction
 followed by fleet minimization) is built once, outside the budget, and all

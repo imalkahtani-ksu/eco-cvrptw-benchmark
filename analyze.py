@@ -158,7 +158,6 @@ def fig_iso(g, path):
     ax.set_ylabel("Fuel Z (L)")
     ax.legend(frameon=False, fontsize=7, ncol=5, loc="upper left",
               handletextpad=0.3, columnspacing=1.0)
-    ax.set_title("Class medians with iso-intensity lines (L/km)", fontsize=8)
     fig.savefig(path)
     plt.close(fig)
 

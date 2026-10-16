@@ -1,0 +1,7 @@
+best method: HGLS (mean of 5 seeds)
+baseline  : nv=40 dist=542.67 fuel=163.606 IF=0.3015 lam=0.516
+optimized : nv=36 dist=481.64 fuel=133.865 IF=0.2779 lam=0.423 (sd fuel 1.31)
+
+distance  -11.25%   intensity -7.81%   fuel -18.18%
+decomposition: distance component -18.40 L, intensity component +11.34 L, net -29.74 L
+modeled cost difference: 34.44 USD/day
