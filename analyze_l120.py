@@ -1,4 +1,4 @@
-import json
+import json, os
 import numpy as np, pandas as pd
 from scipy import stats
 import analyze_r1 as R
@@ -27,5 +27,6 @@ m = d30.set_index(k)[["fuel"]].join(d120.set_index(k)[["fuel"]], rsuffix="_120",
 m["impr"] = 100 * (m.fuel_120 - m.fuel) / m.fuel
 out["improvement_pct"] = m.groupby("algo")["impr"].mean().round(3).to_dict()
 out["improvement_all"] = float(m["impr"].mean())
+os.makedirs("results/analysis_r1", exist_ok=True)
 json.dump(out, open("results/analysis_r1/l120_summary.json", "w"), indent=1, default=float)
 print(json.dumps(out, indent=1, default=float)[:3500])

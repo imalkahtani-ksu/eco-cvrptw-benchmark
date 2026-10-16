@@ -83,7 +83,7 @@ def main():
              "distance  %+.2f%%   intensity %+.2f%%   fuel %+.2f%%"
              % (summary["pct_dist"], summary["pct_IF"], summary["pct_fuel"]),
              "decomposition: distance component %+.2f L, intensity component %+.2f L, net %+.2f L"
-             % (-dist_term, int_term, -tot_save),
+             % (-dist_term, -int_term, -tot_save),
              "modeled cost difference: %.2f USD/day" % summary["cost_save"]]
     io.open(os.path.join(HERE, "case_study", "case_summary.txt"), "w", encoding="utf-8").write("\n".join(lines))
     print("\n".join(lines))
